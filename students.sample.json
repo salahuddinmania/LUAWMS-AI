@@ -1,0 +1,10 @@
+{
+  "2k21-cs-01": {
+    "name": "Sample Student",
+    "department": "Computer Science",
+    "semester": "8th",
+    "cgpa": 3.5,
+    "position": 1,
+    "status": "Enrolled"
+  }
+}

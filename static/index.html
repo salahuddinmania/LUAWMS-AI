@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUAWMS AI Assistant</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        #chat-box { height: 500px; border: 1px solid #ddd; overflow-y: scroll; padding: 15px; margin-bottom: 15px; background: #fff; border-radius: 5px; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 8px; max-width: 85%; line-height: 1.5; }
+        .user { background-color: #007bff; color: white; margin-left: auto; }
+        .assistant { background-color: #e9ecef; color: #333; }
+        .input-group { display: flex; gap: 10px; }
+        input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        button { padding: 12px 24px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #218838; }
+        
+        /* Table Styles for Leaderboard */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #2c3e50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🎓 LUAWMS AI Assistant</h2>
+        
+        <div id="login-section">
+            <p style="text-align: center;">Enter your Roll Number to access records, or login as Visitor.</p>
+            <div class="input-group" style="max-width: 400px; margin: 0 auto;">
+                <input type="text" id="roll-number" placeholder="e.g., 2k21-cs-01 or 'Visitor'">
+                <button onclick="login()">Start Session</button>
+            </div>
+        </div>
+
+        <div id="chat-section" style="display:none;">
+            <div id="chat-box"></div>
+            <div class="input-group">
+                <input type="text" id="query" placeholder="Ask about results, fees, admissions, or class positions..." onkeypress="handleKey(event)">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = "";
+
+        async function login() {
+            const rollNo = document.getElementById('roll-number').value.trim();
+            if(!rollNo) return alert("Please enter a roll number.");
+            
+            const type = rollNo.toLowerCase() === 'visitor' ? 'visitor' : 'roll_number';
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        login_type: type,
+                        roll_number: type === 'roll_number' ? rollNo : null,
+                        visitor_name: type === 'visitor' ? "Visitor" : null
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Login failed');
+                
+                const data = await response.json();
+                sessionId = data.session_id;
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('chat-section').style.display = 'block';
+                addMessage('System', data.message, 'assistant');
+            } catch (e) {
+                alert("Login failed. Please check your roll number.");
+            }
+        }
+
+        async function sendMessage() {
+            const queryInput = document.getElementById('query');
+            const query = queryInput.value.trim();
+            if (!query) return;
+            
+            addMessage('You', query, 'user');
+            queryInput.value = '';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ session_id: sessionId, query: query })
+                });
+                const data = await response.json();
+                addMessage('AI', data.answer, 'assistant');
+            } catch (e) {
+                addMessage('System', "Error connecting to server.", 'assistant');
+            }
+        }
+
+        function addMessage(sender, text, type) {
+            const box = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            
+            // Simple formatting for newlines and bold text
+            let formatted = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            
+            // Basic Table Rendering Logic
+            if (text.includes('|')) {
+                const lines = text.split('\n');
+                let tableHtml = '<table>';
+                let inTable = false;
+                
+                lines.forEach(line => {
+                    if (line.trim().startsWith('|')) {
+                        if (line.includes('---')) return; // Skip separator
+                        inTable = true;
+                        const cols = line.split('|').filter(c => c.trim() !== '');
+                        tableHtml += '<tr>' + cols.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+                    }
+                });
+                tableHtml += '</table>';
+                
+                if (inTable) {
+                    formatted = formatted.replace(/\|.*\|/g, '') + tableHtml; // Remove raw markdown table, append HTML table
+                }
+            }
+
+            div.innerHTML = `<strong>${sender}:</strong> <br>${formatted}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+    </script>
+</body>
+</html>
