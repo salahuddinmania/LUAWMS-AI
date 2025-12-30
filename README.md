@@ -60,14 +60,6 @@ python main.py
 ```
 The API will be available at `http://127.0.0.1:8000`.
 
-### Running the Evaluation
-To test the accuracy of the RAG pipeline against the synthetic dataset:
-```bash
-python evaluate_rag.py
-```
-Results will be saved to `ragas_evaluation_results.csv`.
-
 ## Project Structure
 - `main.py`: Core application logic and API endpoints.
-- `evaluate_rag.py`: Ragas evaluation script.
 - `knowledge_base.json`: Source data for RAG.
